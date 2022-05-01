@@ -31,20 +31,20 @@ type Args struct {
 }
 
 // Makes API request with the specified args and returns the buffer.
-func invokeRequest(args *Args) []byte {
+func invokeRequest(args *Args, reqEndpoint, reqPath string) []byte {
 	if args.mode == List {
 		url := url.URL{
 			Scheme: "https",
-			Host:   apiEndpoint,
-			Path:   apiPath,
+			Host:   reqEndpoint,
+			Path:   reqPath,
 		}
 
 		resp, err := http.Get(url.String())
-		bailif(err)
+		bailIf(err)
 		defer resp.Body.Close()
 
 		body, err := io.ReadAll(resp.Body)
-		bailif(err)
+		bailIf(err)
 
 		return body
 	} else {
@@ -60,15 +60,15 @@ func invokeRequest(args *Args) []byte {
 			},
 			URL: &url.URL{
 				Scheme: "https",
-				Host:   apiEndpoint,
+				Host:   reqEndpoint,
 			},
 		}
 
 		for _, spec := range args.ignoreSpecs {
-			req.URL.Path = path.Join("/", apiPath, spec)
+			req.URL.Path = path.Join("/", reqPath, spec)
 
 			resp, err := client.Do(&req)
-			bailif(err)
+			bailIf(err)
 			defer resp.Body.Close()
 
 			if resp.StatusCode != 200 {
@@ -78,13 +78,13 @@ func invokeRequest(args *Args) []byte {
 			}
 
 			body, err := io.ReadAll(resp.Body)
-			bailif(err)
+			bailIf(err)
 
 			_, err = buffer.WriteString(fmt.Sprintf("# # # %s # # #\n", spec))
-			bailif(err)
+			bailIf(err)
 
 			_, err = buffer.Write(body)
-			bailif(err)
+			bailIf(err)
 		}
 		return buffer.Bytes()
 	}
@@ -103,7 +103,7 @@ func prettyPrint(buffer []byte) {
 // Writes buffer to file.
 func writeBuffer(buffer []byte, args *Args) {
 	path := path.Join(args.pathSpec, outFile)
-	bailif(os.WriteFile(path, buffer, 0644))
+	bailIf(os.WriteFile(path, buffer, 0644))
 	fmt.Printf("new file: %s\n", path)
 }
 
@@ -131,7 +131,7 @@ func parseArgs() Args {
 		args.mode = List
 	case "get":
 		flags.StringVar(&args.pathSpec, "path", cwd(), "Specify the output directory")
-		bailif(flags.Parse(os.Args[2:]))
+		bailIf(flags.Parse(os.Args[2:]))
 		args.mode = Get
 		args.ignoreSpecs = flags.Args()
 	case "help":
@@ -144,7 +144,7 @@ func parseArgs() Args {
 }
 
 // Panics on error.
-func bailif(err any) {
+func bailIf(err any) {
 	if err != nil {
 		panic(err)
 	}
@@ -153,7 +153,7 @@ func bailif(err any) {
 // Returns the current working directory.
 func cwd() string {
 	wd, err := os.Getwd()
-	bailif(err)
+	bailIf(err)
 	return wd
 }
 
@@ -182,7 +182,7 @@ Examples:
 
 func main() {
 	args := parseArgs()
-	bytes := invokeRequest(&args)
+	bytes := invokeRequest(&args, apiEndpoint, apiPath)
 	if args.mode == List {
 		prettyPrint(bytes)
 	} else {
